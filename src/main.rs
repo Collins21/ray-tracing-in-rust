@@ -1,30 +1,56 @@
+use core::f64;
+
 use crate::{
     color::{Color, write_color},
+    hitabble_list::HittableList,
+    hittable::Hittable,
     ray::Ray,
+    sphere::Sphere,
     vec3::{Point3, Vec3},
 };
 mod color;
+mod hitabble_list;
+mod hittable;
 mod ray;
+mod sphere;
 mod utility;
 mod vec3;
 
-fn ray_color(r: &Ray) -> Color {
-    let unit_direction = Vec3::unit_vector(&r.direction());
-    let a = 0.5 * (unit_direction.y() + 1.0);
-    (1.0 - a) * Color { e: [1.0, 1.0, 1.0] } + a * Color { e: [0.5, 0.7, 1.0] }
+fn ray_color(r: &Ray, world: &HittableList) -> Color {
+    match world.hit(r, 0.0, f64::MAX) {
+        Some(rec) => {
+            return 0.5
+                * Vec3::new(
+                    rec.normal.x() + 1.0,
+                    rec.normal.y() + 1.0,
+                    rec.normal.z() + 1.0,
+                );
+        }
+        None => {
+            let unit_direction = Vec3::unit_vector(r.dir);
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            return (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0);
+        }
+    }
 }
 fn main() {
     //Image
-    let image_width: i64 = 400;
+    let image_width: i64 = 200;
     let aspect_ratio = 16.0 / 9.0;
+    //World
+
+    let mut world = HittableList::new(2);
+    world.add(Box::new(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5)));
+    world.add(Box::new(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0)));
+
     //calculate the image height and ensure that it's at 1
-    let mut image_height = (image_width as f64 / aspect_ratio) as i64;
+    let mut image_height = (image_width / aspect_ratio as i64) as i64;
     image_height = if image_height < 1 { 1 } else { image_height };
 
     //camera
     let focal_length = 1.0;
     let view_height = 2.0;
-    let view_width = view_height as f64 * (image_width / image_height) as f64;
+    let view_width = view_height * (image_width / image_height) as f64;
     let camera_center = Point3 { e: [0.0, 0.0, 0.0] };
 
     // Calculate the horizontal and vertical delta vectors from pixel to pixel.
@@ -61,7 +87,7 @@ fn main() {
                 origin: camera_center,
                 dir: ray_direction,
             };
-            let pixel_color = ray_color(&r);
+            let pixel_color = ray_color(&r, &world);
             write_color(pixel_color);
         }
     }
